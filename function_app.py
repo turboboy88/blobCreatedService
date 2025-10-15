@@ -6,12 +6,6 @@ from azure.storage.blob import BlobClient
 from azure.identity import DefaultAzureCredential
 
 app = func.FunctionApp()
-
-def _parse_blob_name_from_url(url: str) -> str:
-    p = urlparse(url)
-    path = p.path.lstrip("/")
-    return unquote(path)
-
 @app.route(route="BlobCreatedHandler", auth_level=func.AuthLevel.FUNCTION)
 def BlobCreatedHandler(req: func.HttpRequest) -> func.HttpResponse:
     try:
@@ -65,3 +59,8 @@ def BlobCreatedHandler(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         logging.exception("Error processing Event Grid event")
         return func.HttpResponse("Error", status_code=500)
+
+def _parse_blob_name_from_url(url: str) -> str:
+    p = urlparse(url)
+    path = p.path.lstrip("/")
+    return unquote(path)
