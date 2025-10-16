@@ -57,7 +57,7 @@ RG=my-rg LOC=westeurope SA_NAME=myblobstorage APP_NAME=myfunc
 ## Testing
 
 After deployment, upload any file to the created Storage Account to trigger the function. 
-View logs in real-time at the Application Insights -> Logs -> Traces:
+View logs in real-time at the Function App -> BlobCreatedHandler -> Logs:
 ![img.png](img.png)
 
 ## Azure Services Used

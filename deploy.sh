@@ -170,40 +170,22 @@ az role assignment create \
 echo "Publishing function code to $APP_NAME ..."
 func azure functionapp publish "$APP_NAME"
 
-# -------- Retrieve function key (retry until ready) --------
-echo "Fetching function key for: $FUNC_NAME ..."
-FUNC_KEY=""
-for _ in {1..12}; do
-  set +e
-  FUNC_KEY="$(az functionapp function keys list \
-    --name "$APP_NAME" \
+echo "Creating Event Grid subscription to BlobCreated (Azure Function endpoint) ..."
+SA_ID=$(
+  az resource show \
     --resource-group "$RG" \
-    --function-name "$FUNC_NAME" \
-    --query "default" -o tsv 2>/dev/null)"
-  RET=$?
-  set -e
-  if [ $RET -eq 0 ] && [ -n "$FUNC_KEY" ]; then
-    break
-  fi
-  echo "  Not ready yet, waiting 5s..."
-  sleep 5
-done
+    --name "$SA_NAME" \
+    --resource-type Microsoft.Storage/storageAccounts \
+    --api-version 2025-06-01 \
+    --query id -o tsv
+)
+FUNC_RES_ID="/subscriptions/${SUB_ID}/resourceGroups/${RG}/providers/Microsoft.Web/sites/${APP_NAME}/functions/${FUNC_NAME}"
 
-if [ -z "${FUNC_KEY:-}" ]; then
-  echo "ERROR: Could not get function key for '$FUNC_NAME'. Verify the function name in your code."
-  exit 1
-fi
-
-FUNC_URL="https://${APP_NAME}.azurewebsites.net/api/${FUNC_NAME}?code=${FUNC_KEY}"
-echo "Function URL: $FUNC_URL"
-
-# -------- Wire up Event Grid (Storage -> Function WebHook) --------
-echo "Creating Event Grid subscription for Microsoft.Storage.BlobCreated ..."
-SA_ID="$(az storage account show --name "$SA_NAME" --resource-group "$RG" --subscription "$SUB_ID" --query id -o tsv)"
 az eventgrid event-subscription create \
   --name "$EG_SUB_NAME" \
   --source-resource-id "$SA_ID" \
-  --endpoint "$FUNC_URL" \
+  --endpoint-type azurefunction \
+  --endpoint "$FUNC_RES_ID" \
   --included-event-types Microsoft.Storage.BlobCreated \
   --subscription "$SUB_ID" -o none
 
@@ -215,5 +197,4 @@ echo "Resource Group:      $RG"
 echo "Storage Account:     $SA_NAME"
 echo "Blob Container:      $CONTAINER_NAME"
 echo "Location:            $LOC"
-echo "Function URL:        $FUNC_URL"
 echo "EventGrid Sub:       $EG_SUB_NAME"
